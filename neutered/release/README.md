@@ -4,7 +4,7 @@ Build a macOS arm64 application archive and a Homebrew formula for a repository 
 
 ## Build and verify
 
-Use an Apple Silicon Mac with the repository's supported Node.js and pnpm versions. Install dependencies and build before packing:
+Use an Apple Silicon Mac running macOS Sonoma or newer with the repository's supported Node.js and pnpm versions. Install dependencies and build before packing:
 
 ```sh
 pnpm install --frozen-lockfile

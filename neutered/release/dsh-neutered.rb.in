@@ -7,7 +7,7 @@ class DshNeutered < Formula
   license "MIT"
 
   depends_on arch: :arm64
-  depends_on :macos
+  depends_on macos: :sonoma
   depends_on "node"
 
   # The launcher verifies the upstream llama.cpp bytes before each start.
