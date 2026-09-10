@@ -1,0 +1,2 @@
+# The root .gitignore drops every lib/ as build output; this lib/ is hand-written source.
+!lib/

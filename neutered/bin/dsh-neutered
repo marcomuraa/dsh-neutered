@@ -1,0 +1,359 @@
+#!/bin/bash
+# dsh-neutered — the offline DeepSeek Harness wrapper.
+#
+# Boots the headless or the interactive (repl) profile of the built CLI with the
+# loopback-only egress guard preloaded and the offline overlay applied. The only
+# permitted network destination at run time is http://127.0.0.1:1234/v1,
+# enforced three ways: the base bundle carries no remote-reaching code, the Node
+# preload guard blocks any other socket/DNS/fetch, and the macOS Seatbelt
+# profile blocks any other network from bash-tool children.
+#
+# The model server is either one already listening on 127.0.0.1:1234, or the
+# vendored llama-server in neutered/llama/bin, which this wrapper starts for the
+# run: it checks the binaries against SHA256SUMS, waits for GET /health, runs
+# the agent, and stops the server on exit unless --keep-server. The server
+# unloads its weights after --idle-seconds without a request and reloads them
+# on the next one. The model comes from --model, DSH_NEUTERED_MODEL, or the
+# saved configuration $DSH_HOME/neutered/config.json; --ctx, --keep-server and
+# --load-timeout likewise default from that file when it exists.
+#
+# `setup` and `settings` are the one exception to the offline posture: they run
+# neutered/setup/setup.cjs without the guard to install llama.cpp and download a
+# model (see neutered/setup/README.md). A task run never downloads anything;
+# when no configuration exists yet and no --model or listening server is at
+# hand, it runs setup first, then the task. Setup also writes a second overlay,
+# $DSH_HOME/neutered/overlay.yml, which the wrapper applies after the tracked
+# one.
+#
+# Usage:
+#   dsh-neutered [--dsh <path>] [--model <gguf>] [--ctx <n>] [--idle-seconds <n>]
+#                [--keep-server] [--llama-dir <dir>] [--server-arg <arg>]...
+#                [--load-timeout <s>] [--resume [id]] [--sessions] [--dry-run]
+#                [-- <task text and dsh args>]
+#   dsh-neutered setup    [--yes] [--model <id>] [--context <n>] [--force]
+#   dsh-neutered settings [--show] [--model <id>] [--context <n>] [--keep-server on|off] [--stop-server] [--reset]
+#   dsh-neutered -h | --help
+#
+# --dsh <path>        Use this built CLI entry (default: apps/cli/lib/bin.js next
+#                     to this checkout, else `dsh` on PATH).
+# --model <gguf>      Start the vendored llama-server on this model when nothing
+#                     listens on 127.0.0.1:1234 (env DSH_NEUTERED_MODEL; default
+#                     the configured model).
+# --ctx <n>           Server context size (default: the configured context
+#                     window, else 131072, the overlay's value).
+# --idle-seconds <n>  Unload the weights after this many idle seconds (default 1800).
+# --keep-server       Leave a server this wrapper started running after the run
+#                     (default: the configured `server.keep`, else stop it).
+# --llama-dir <dir>   Where bin/ and SHA256SUMS live (default neutered/llama).
+# --server-arg <arg>  Extra llama-server argument; repeatable; download, remote,
+#                     bind, router and UI flags are refused. The configured
+#                     `model.serverArgs` and `server.extraArgs` are added first.
+# --load-timeout <s>  Give up if /health is not 200 within this time (default:
+#                     the configured `server.startTimeoutMs`, else 900).
+# --dry-run           Print the server plan, the command and the environment, exit 0.
+# Everything after `--` is forwarded to the headless app unchanged.
+#
+# Exit codes: the agent's own; 2 usage; 3 the server could not be verified or
+# started.
+set -euo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+neutered="$(cd "$here/.." && pwd)"
+repo="$(cd "$neutered/.." && pwd)"
+guard="$neutered/guard/loopback-only.cjs"
+overlay="$neutered/offline.patch.yml"
+setup_cjs="$neutered/setup/setup.cjs"
+
+host=127.0.0.1
+port=1234
+# Test seam. The wrapper's own suite cannot free port 1234 on a developer
+# machine, so it may move the sidecar and its health probe to another port. The
+# guard still pins the agent to 1234, so a moved sidecar is unreachable by the
+# agent; the seam only exercises the lifecycle against stub processes.
+if [ -n "${DSH_NEUTERED_TEST_PORT:-}" ]; then port="$DSH_NEUTERED_TEST_PORT"; fi
+
+dsh_bin=""
+dry_run=0
+mode="run"
+args=()
+model="${DSH_NEUTERED_MODEL:-}"
+model_explicit=0; [ -z "$model" ] || model_explicit=1
+ctx=""
+idle=1800
+keep=""
+llama_dir="$neutered/llama"
+server_args=()
+load_timeout=""
+resume=0
+resume_id=""
+sessions=0
+
+usage() {
+  cat <<'USAGE'
+dsh-neutered — offline DeepSeek Harness
+
+Runs the headless or the interactive (repl) profile with a loopback-only
+egress guard. With task text after -- it answers that task and exits; with no
+task and a terminal on stdin it opens the REPL; with no task and piped stdin the
+whole input is the task. The single
+permitted network destination is http://127.0.0.1:1234/v1: either a model
+server already listening there, or the vendored llama-server that this wrapper
+starts on the configured model (or --model) and stops when the run ends.
+
+Usage:
+  dsh-neutered [--dsh <path>] [--model <gguf>] [--ctx <n>] [--idle-seconds <n>]
+               [--keep-server] [--llama-dir <dir>] [--server-arg <arg>]...
+               [--load-timeout <s>] [--resume [id]] [--sessions] [--dry-run]
+               [-- <task text>]
+  dsh-neutered setup    [--yes] [--model <id>] [--context <n>] [--force]
+  dsh-neutered settings [--show] [--model <id>] [--context <n>] [--keep-server on|off] [--stop-server] [--reset]
+  dsh-neutered -h | --help
+  dsh-neutered --version
+
+  --dsh <path>        built CLI entry to run (default: the checkout's apps/cli/lib/bin.js, else dsh on PATH)
+  --model <gguf>      start the vendored llama-server on this model if nothing listens on 127.0.0.1:1234
+                      (env DSH_NEUTERED_MODEL; default: the model chosen in setup);
+                      one-time install: bash neutered/llama/install.sh <tarball>
+  --ctx <n>           server context size (default: the configured context window, else 131072)
+  --idle-seconds <n>  server unloads the weights after this many idle seconds (default 1800)
+  --keep-server       leave a server this wrapper started running when the run ends
+  --llama-dir <dir>   where bin/llama-server and SHA256SUMS live (default neutered/llama)
+  --server-arg <arg>  extra llama-server argument, repeatable (download, remote, bind, router, UI flags refused)
+  --load-timeout <s>  give up if the server is not healthy within this time (default 900)
+  --resume [id]       REPL only: continue the most recent persisted session, or the given id
+  --sessions          REPL only: list the ten most recent sessions and exit
+  --dry-run           print the server plan, the command and environment, then exit
+  -- <args>           everything after -- is the task text for the headless app
+  setup               first-run configuration: detect hardware, pick a model, download it (network)
+  settings            show or change the model, context window and server behaviour
+
+In the REPL: Enter sends, Esc cancels the running turn, typing during a turn
+queues the next prompt, y/Esc answer approval questions, Ctrl-C twice exits.
+This build has no privacy levels, no -p flag, no slash commands and no web UI.
+Only setup and settings --model use the network; a run reaches 127.0.0.1:1234
+and nothing else.
+USAGE
+}
+
+die() { local code="$1"; shift; echo "dsh-neutered: $*" >&2; exit "$code"; }
+
+need_value() { [ $# -gt 1 ] || die 2 "$1 needs a value"; }
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -h|--help) usage; exit 0 ;;
+    -V|--version) node -p 'require(process.argv[1]).version' "$repo/apps/cli/package.json"; exit $? ;;
+    setup|settings) mode="$1"; shift; args=("$@"); break ;;
+    --dsh) need_value "$@"; dsh_bin="$2"; shift 2 ;;
+    --model) need_value "$@"; model="$2"; model_explicit=1; shift 2 ;;
+    --ctx) need_value "$@"; ctx="$2"; shift 2 ;;
+    --idle-seconds) need_value "$@"; idle="$2"; shift 2 ;;
+    --keep-server) keep=1; shift ;;
+    --llama-dir) need_value "$@"; llama_dir="$2"; shift 2 ;;
+    --server-arg) need_value "$@"; server_args+=("$2"); shift 2 ;;
+    --load-timeout) need_value "$@"; load_timeout="$2"; shift 2 ;;
+    --resume) resume=1; if [ $# -gt 1 ] && [ "${2#-}" = "$2" ]; then resume_id="$2"; shift 2; else shift; fi ;;
+    --sessions) sessions=1; shift ;;
+    --dry-run) dry_run=1; shift ;;
+    --) shift; args=("$@"); break ;;
+    *) echo "dsh-neutered: unknown argument '$1' (this build has no -p or --web; use -- to pass task text)" >&2; exit 2 ;;
+  esac
+done
+
+# Setup must find the same pinned server that task runs use.
+if [ -x "$llama_dir/bin/llama-server" ]; then
+  export PATH="$llama_dir/bin:$PATH"
+fi
+
+# Setup and settings run setup.cjs without the guard, with the caller's
+# NODE_OPTIONS unchanged; they are the only network-using commands.
+setup_node() { NODE_OPTIONS="${NODE_OPTIONS:-}" node "$setup_cjs" "$@"; }
+
+case "$mode" in
+  setup) setup_node setup ${args[@]+"${args[@]}"}; exit $? ;;
+  settings) setup_node settings ${args[@]+"${args[@]}"}; exit $? ;;
+esac
+
+if [ -z "$dsh_bin" ]; then
+  if [ -f "$repo/apps/cli/lib/bin.js" ]; then
+    dsh_cmd=(node "$repo/apps/cli/lib/bin.js")
+  else
+    dsh_cmd=(dsh)
+  fi
+else
+  dsh_cmd=("$dsh_bin")
+fi
+
+node_options="--require=\"$guard\""
+if [ -n "${NODE_OPTIONS:-}" ]; then
+  node_options="$NODE_OPTIONS $node_options"
+fi
+
+server_listening() { lsof -nP -iTCP@"$host:$port" -sTCP:LISTEN -t >/dev/null 2>&1; }
+# The literal loopback host keeps this URL visible to the static gate's
+# quoted-URL check; $host is the same constant.
+server_healthy() { curl -fsS -m 2 "http://127.0.0.1:$port/health" >/dev/null 2>&1; }
+
+# Saved configuration ($DSH_HOME/neutered/config.json and overlay.yml, written
+# by setup). Its model, context, keep and start-timeout are the defaults for the
+# matching flags; its server arguments precede any --server-arg.
+user_overlay="$(setup_node overlay-path)"
+config_json="$(dirname "$user_overlay")/config.json"
+patches=(--patch "$overlay")
+cfg_model=""; cfg_ctx=""; cfg_keep=""; cfg_timeout=""; cfg_args=()
+load_config() {
+  local fields
+  fields="$(NODE_OPTIONS="${NODE_OPTIONS:-}" node -e '
+    const c = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+    if (c.version !== 1 || !c.model || typeof c.model.path !== "string") process.exit(1);
+    const s = c.server || {};
+    process.stdout.write([c.model.path, c.contextWindow || "", s.keep ? 1 : 0,
+      s.startTimeoutMs ? Math.ceil(s.startTimeoutMs / 1000) : ""].join("\x1f") + "\n");
+    for (const a of [...(c.model.serverArgs || []), ...(s.extraArgs || [])]) process.stdout.write(String(a) + "\n");
+  ' "$config_json" 2>/dev/null)" || die 2 "cannot read $config_json; delete it and run dsh-neutered setup again"
+  IFS=$'\x1f' read -r cfg_model cfg_ctx cfg_keep cfg_timeout <<<"$(printf '%s\n' "$fields" | head -n 1)"
+  local a
+  while IFS= read -r a; do [ -z "$a" ] || cfg_args+=("$a"); done <<<"$(printf '%s\n' "$fields" | tail -n +2)"
+  [ ! -f "$user_overlay" ] || patches+=(--patch "$user_overlay")
+}
+
+# Without a configuration: an explicit --model or a server already answering on
+# the port is used as is with the tracked overlay only; otherwise first-time
+# setup runs before the task.
+setup_note=""
+if [ -f "$config_json" ]; then
+  load_config
+elif [ -n "$model" ]; then
+  :
+elif server_listening; then
+  echo "dsh-neutered: no configuration yet; using the server already listening on $host:$port" >&2
+elif [ "$dry_run" -eq 1 ]; then
+  setup_note="setup: would run first (no $config_json)"
+else
+  echo "dsh-neutered: no configuration yet; running first-time setup" >&2
+  setup_node setup || exit $?
+  [ -f "$config_json" ] || die 3 "setup finished without writing $config_json"
+  load_config
+fi
+[ -n "$model" ] || model="$cfg_model"
+[ -n "$ctx" ] || ctx="${cfg_ctx:-131072}"
+[ -n "$keep" ] || keep="${cfg_keep:-0}"
+[ -n "$load_timeout" ] || load_timeout="${cfg_timeout:-900}"
+server_args=("${cfg_args[@]+"${cfg_args[@]}"}" "${server_args[@]+"${server_args[@]}"}")
+
+for n in "$ctx" "$idle" "$load_timeout"; do
+  case "$n" in ''|*[!0-9]*) die 2 "--ctx, --idle-seconds and --load-timeout take a whole number" ;; esac
+done
+
+# llama-server flags that would download a model, reach another machine, move
+# the bind, switch to router mode, or enable the server's own UI, tools or MCP.
+forbidden_server_flags=(
+  -hf -hfr --hf-repo -hff --hf-file -hft --hf-token -hfd -hfrd --hf-repo-draft --spec-draft-hf
+  -mu --model-url -dr --docker-repo --rpc --host --port --reuse-port
+  --models-dir --models-preset --models-max --models-autoload
+  -m --model --sleep-idle-seconds --api-key --api-key-file --ssl-key-file --ssl-cert-file
+  --ui --webui --no-ui --no-webui --ui-mcp-proxy --webui-mcp-proxy --no-ui-mcp-proxy --no-webui-mcp-proxy
+  --mcp-servers-config --mcp-servers-json --tools --tools-runtime -ag --path --media-path
+)
+for a in "${server_args[@]+"${server_args[@]}"}"; do
+  key="${a%%=*}"
+  for f in "${forbidden_server_flags[@]}"; do
+    [ "$key" = "$f" ] && die 2 "--server-arg $a is not permitted in this build"
+  done
+done
+
+profile=headless
+if [ ${#args[@]} -gt 0 ]; then
+  [ "$resume" -eq 0 ] && [ "$sessions" -eq 0 ] || die 2 "--resume and --sessions open the REPL and take no task text"
+elif [ -t 0 ]; then
+  profile=repl
+elif [ "$resume" -eq 1 ] || [ "$sessions" -eq 1 ]; then
+  die 2 "--resume and --sessions need a terminal on stdin"
+else
+  task="$(cat)"
+  [ -n "${task//[[:space:]]/}" ] || die 2 "no task: pass one after --, pipe it on stdin, or run from a terminal for the REPL"
+  args=("$task")
+fi
+cmd=("${dsh_cmd[@]}" --profile "$profile" "${patches[@]}")
+if [ "$profile" = repl ]; then
+  repl_args=()
+  [ "$sessions" -eq 0 ] || repl_args+=(--sessions)
+  if [ "$resume" -eq 1 ]; then
+    if [ -n "$resume_id" ]; then repl_args+=(--resume "$resume_id"); else repl_args+=(--resume); fi
+  fi
+  [ ${#repl_args[@]} -eq 0 ] || cmd+=(-- "${repl_args[@]}")
+else
+  cmd+=(-- "${args[@]}")
+fi
+
+log_dir="${DSH_HOME:-$HOME/.dsh}/logs"
+log="$log_dir/llama-server.log"
+server_cmd=()
+plan=none
+if server_listening; then
+  plan=reuse
+  [ "$model_explicit" -eq 0 ] || echo "dsh-neutered: a server already listens on $host:$port; --model $model is ignored" >&2
+elif [ -n "$model" ]; then
+  plan=spawn
+  [ -f "$model" ] || die 2 "model file not found: $model"
+  [ -x "$llama_dir/bin/llama-server" ] || die 3 "no llama-server in $llama_dir/bin; run: bash $llama_dir/install.sh <tarball>"
+  [ -f "$llama_dir/SHA256SUMS" ] || die 3 "missing $llama_dir/SHA256SUMS"
+  (cd "$llama_dir/bin" && shasum -a 256 -c "$llama_dir/SHA256SUMS" --status) \
+    || die 3 "files in $llama_dir/bin do not match $llama_dir/SHA256SUMS; reinstall with install.sh"
+  server_cmd=("$llama_dir/bin/llama-server" --host "$host" --port "$port" -m "$model" -c "$ctx" -ngl 99
+              --jinja --alias local --no-webui --offline --sleep-idle-seconds "$idle"
+              "${server_args[@]+"${server_args[@]}"}")
+fi
+
+if [ "$dry_run" -eq 1 ]; then
+  echo "NODE_OPTIONS=$node_options"
+  echo "profile: $profile"
+  [ -z "$setup_note" ] || echo "$setup_note"
+  case "$plan" in
+    reuse) echo "server: reuse $host:$port (already listening)" ;;
+    spawn) printf 'server: '; printf '%q ' "${server_cmd[@]}"; echo
+           echo "server-log: $log"; echo "server-stop-on-exit: $([ "$keep" -eq 1 ] && echo no || echo yes)" ;;
+    none) echo "server: none (nothing listens on $host:$port; pass --model <gguf>, run dsh-neutered setup, or start one)" ;;
+  esac
+  printf '%q ' "${cmd[@]}"; echo
+  exit 0
+fi
+
+case "$plan" in
+  none) die 2 "nothing listens on $host:$port and no model is configured; run dsh-neutered setup, pass --model <gguf>, or start a model server there" ;;
+  reuse) exec env NODE_OPTIONS="$node_options" "${cmd[@]}" ;;
+esac
+
+# plan=spawn: start the sidecar, wait for it, run the agent, stop the sidecar.
+mkdir -p "$log_dir"
+"${server_cmd[@]}" >>"$log" 2>&1 &
+server_pid=$!
+cleanup() {
+  [ "$keep" -eq 0 ] || return 0
+  kill -0 "$server_pid" 2>/dev/null || return 0
+  kill -TERM "$server_pid" 2>/dev/null || true
+  for _ in $(seq 1 50); do kill -0 "$server_pid" 2>/dev/null || return 0; sleep 0.2; done
+  kill -KILL "$server_pid" 2>/dev/null || true
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+echo "dsh-neutered: starting llama-server (pid $server_pid) on $host:$port with $(basename "$model"); log $log" >&2
+start=$SECONDS
+until server_healthy; do
+  kill -0 "$server_pid" 2>/dev/null || die 3 "llama-server exited during load; see $log"
+  [ $((SECONDS - start)) -lt "$load_timeout" ] || die 3 "llama-server not healthy after ${load_timeout}s; see $log"
+  sleep 0.5
+done
+echo "dsh-neutered: model ready after $((SECONDS - start))s; weights unload after ${idle}s idle" >&2
+
+set +e
+env NODE_OPTIONS="$node_options" "${cmd[@]}"
+rc=$?
+set -e
+if [ "$keep" -eq 1 ]; then
+  echo "dsh-neutered: llama-server left running (pid $server_pid); stop it with: kill $server_pid" >&2
+  disown "$server_pid" 2>/dev/null || true
+fi
+exit "$rc"

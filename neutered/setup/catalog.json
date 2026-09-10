@@ -1,0 +1,220 @@
+[
+  {
+    "id": "qwen3.8-27b-q4",
+    "name": "Qwen3.8-27B UD-Q4_K_XL",
+    "repo": "unsloth/Qwen3.8-27B-GGUF",
+    "files": [
+      "Qwen3.8-27B-UD-Q4_K_XL.gguf"
+    ],
+    "sizeBytes": 17559178144,
+    "sha256": [],
+    "nativeContext": 262144,
+    "tags": [
+      "recommended",
+      "dense"
+    ],
+    "serverArgs": [
+      "--temp",
+      "0.7",
+      "--top-p",
+      "0.8",
+      "--top-k",
+      "20",
+      "--min-p",
+      "0",
+      "--presence-penalty",
+      "1.5"
+    ],
+    "pinned": true,
+    "notes": "Qwen's 27B generalist with reasoning; the best coding quality per gigabyte in this list."
+  },
+  {
+    "id": "qwen3.8-27b-q8",
+    "name": "Qwen3.8-27B Q8_0",
+    "repo": "unsloth/Qwen3.8-27B-GGUF",
+    "files": [
+      "Qwen3.8-27B-Q8_0.gguf"
+    ],
+    "sizeBytes": 29047086048,
+    "sha256": [],
+    "nativeContext": 262144,
+    "tags": [
+      "quality",
+      "dense"
+    ],
+    "serverArgs": [
+      "--temp",
+      "0.7",
+      "--top-p",
+      "0.8",
+      "--top-k",
+      "20",
+      "--min-p",
+      "0",
+      "--presence-penalty",
+      "1.5"
+    ],
+    "pinned": true,
+    "notes": "Near-lossless 8-bit build of the same model for machines with 48 GiB or more."
+  },
+  {
+    "id": "qwen3.8-27b-iq3",
+    "name": "Qwen3.8-27B UD-IQ3_XXS",
+    "repo": "unsloth/Qwen3.8-27B-GGUF",
+    "files": [
+      "Qwen3.8-27B-UD-IQ3_XXS.gguf"
+    ],
+    "sizeBytes": 10934860704,
+    "sha256": [],
+    "nativeContext": 262144,
+    "tags": [
+      "small",
+      "dense"
+    ],
+    "serverArgs": [
+      "--temp",
+      "0.7",
+      "--top-p",
+      "0.8",
+      "--top-k",
+      "20",
+      "--min-p",
+      "0",
+      "--presence-penalty",
+      "1.5"
+    ],
+    "pinned": true,
+    "notes": "3-bit build for 24 GiB machines; noticeably weaker than the 4-bit one."
+  },
+  {
+    "id": "qwen3.6-35b-a3b-q4",
+    "name": "Qwen3.6-35B-A3B UD-Q4_K_XL",
+    "repo": "unsloth/Qwen3.6-35B-A3B-GGUF",
+    "files": [
+      "Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf"
+    ],
+    "sizeBytes": 22360456160,
+    "sha256": [],
+    "nativeContext": 262144,
+    "tags": [
+      "fast",
+      "moe"
+    ],
+    "serverArgs": [
+      "--temp",
+      "0.7",
+      "--top-p",
+      "0.8",
+      "--top-k",
+      "20",
+      "--min-p",
+      "0"
+    ],
+    "pinned": true,
+    "notes": "Mixture of experts with 3B active parameters: much faster per token than the dense 27B."
+  },
+  {
+    "id": "qwen3-coder-next-q4",
+    "name": "Qwen3-Coder-Next UD-Q4_K_XL",
+    "repo": "unsloth/Qwen3-Coder-Next-GGUF",
+    "files": [
+      "Qwen3-Coder-Next-UD-Q4_K_XL.gguf"
+    ],
+    "sizeBytes": 49608478720,
+    "sha256": [],
+    "nativeContext": 262144,
+    "tags": [
+      "coder",
+      "moe"
+    ],
+    "serverArgs": [
+      "--temp",
+      "1.0",
+      "--top-p",
+      "0.95",
+      "--top-k",
+      "40",
+      "--min-p",
+      "0.01"
+    ],
+    "pinned": true,
+    "notes": "80B mixture of experts (3B active) tuned for agentic coding; needs 64 GiB."
+  },
+  {
+    "id": "gpt-oss-20b",
+    "name": "gpt-oss-20b MXFP4",
+    "repo": "ggml-org/gpt-oss-20b-GGUF",
+    "files": [
+      "gpt-oss-20b-MXFP4.gguf"
+    ],
+    "sizeBytes": 12109566624,
+    "sha256": [],
+    "nativeContext": 131072,
+    "tags": [
+      "small",
+      "moe"
+    ],
+    "serverArgs": [
+      "--temp",
+      "1.0",
+      "--top-p",
+      "1.0",
+      "--top-k",
+      "0"
+    ],
+    "pinned": true,
+    "notes": "OpenAI's open-weight 20B mixture of experts in its native 4-bit format; 128k context."
+  },
+  {
+    "id": "gpt-oss-120b",
+    "name": "gpt-oss-120b MXFP4",
+    "repo": "ggml-org/gpt-oss-120b-GGUF",
+    "files": [
+      "gpt-oss-120b-MXFP4.gguf"
+    ],
+    "sizeBytes": 63387346208,
+    "sha256": [],
+    "nativeContext": 131072,
+    "tags": [
+      "large",
+      "moe"
+    ],
+    "serverArgs": [
+      "--temp",
+      "1.0",
+      "--top-p",
+      "1.0",
+      "--top-k",
+      "0"
+    ],
+    "pinned": true,
+    "notes": "OpenAI's open-weight 120B mixture of experts; needs 96 GiB or more."
+  },
+  {
+    "id": "qwen3.5-9b-q4",
+    "name": "Qwen3.5-9B UD-Q4_K_XL",
+    "repo": "unsloth/Qwen3.5-9B-GGUF",
+    "files": [
+      "Qwen3.5-9B-UD-Q4_K_XL.gguf"
+    ],
+    "sizeBytes": 5966095584,
+    "sha256": [],
+    "nativeContext": 262144,
+    "tags": [
+      "small",
+      "dense"
+    ],
+    "serverArgs": [
+      "--temp",
+      "0.7",
+      "--top-p",
+      "0.8",
+      "--top-k",
+      "20",
+      "--min-p",
+      "0"
+    ],
+    "pinned": true,
+    "notes": "The option for 16 GiB machines; limited but usable for small edits."
+  }
+]

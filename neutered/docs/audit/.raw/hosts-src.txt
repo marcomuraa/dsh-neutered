@@ -1,0 +1,65 @@
+snapshots/session/web-fetch/web-fetch-fixture-server.mjs:12:const RECORDED_URL = 'http://public.test:43117/menu.html'
+snapshots/session/web-fetch/web-fetch-fixture-server.mjs:21:<p>See <a href="https://fixture.invalid/specials">today&rsquo;s specials</a>.</p>
+vendor/loader/src/internal.ts:23:/** @see https://github.com/nodejs/node/blob/main/lib/internal/modules/esm/module_map.js */
+vendor/loader/src/internal.ts:36:/** @see https://github.com/nodejs/node/blob/main/lib/internal/modules/esm/module_job.js */
+vendor/loader/src/internal.ts:73:/** @see https://github.com/nodejs/node/blob/main/src/module_wrap.h */
+vendor/loader/src/index.ts:195:    // https://github.com/evanw/esbuild/issues/2623
+vendor/loader/src/index.ts:196:    // https://esbuild.github.io/content-types/#default-interop
+vendor/cosmokit/src/types.ts:35:      // https://stackoverflow.com/questions/8609289/convert-a-binary-nodejs-buffer-to-javascript-arraybuffer#answer-31394257
+packages/session-query/session-log-export/src/client/controller.ts:50:  return origin !== undefined && origin !== 'null' ? origin : 'http://dsh.internal'
+packages/session/session-telemetry-otel/src/index.ts:101:    /** Full logs endpoint (e.g. `https://collector.example.com/v1/logs`). Required outside `DISABLED`; validated at load. */
+scripts/rescope-vendor.ts:377:    find: '    expect(rows).toContainEqual({ npmName: \'cordis\', upstream: \'https://github.com/cordiverse/cordis\' })',
+scripts/rescope-vendor.ts:381:      upstream: 'https://github.com/cordiverse/cordis',
+scripts/rescope-vendor.ts:388:    find: 'parseVendoredRows(\'| `cordis/` | cordis | 4.0.0 | https://example.com | `abc123` |\\n\')',
+scripts/rescope-vendor.ts:389:    replace: 'parseVendoredRows(\'| `cordis/` | `@deepseek-ai/cordis` | cordis | 4.0.0 | https://example.com | `abc123` |\\n\')',
+packages/web/web-search-exa/src/provider.ts:22:export const EXA_DEFAULT_BASE_URL = 'https://api.exa.ai'
+packages/web/web-search-exa/src/types.ts:2: * Wire types for the Exa search API (`POST https://api.exa.ai/search`). Types
+packages/web/web-fetch-http/src/index.ts:23:export const DEFAULT_USER_AGENT = 'deepseek-harness/0.0.1 (+https://github.com/deepseek-ai)'
+scripts/project-doc-site.ts:26:const REPOSITORY_URL = 'https://github.com/deepseek-ai/deepseek-harness'
+scripts/project-doc-site.ts:143:  if (image) return `https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/${repositoryRef}/${path}${suffix}`
+packages/web/web-search-deepseek/src/provider.ts:32: * (`https://api.deepseek.com`) `@deepseek-ai/dsh-llm-deepseek` uses, so this
+packages/web/web-search-deepseek/src/provider.ts:35:export const DEEPSEEK_DEFAULT_BASE_URL = 'https://api.deepseek.com/anthropic/v1'
+packages/experimental/inspector/src/worker/bridge/endpoint.ts:99:    const pathname = new URL(request.url ?? '/', 'http://inspector.invalid').pathname
+packages/experimental/inspector/src/worker/bridge/endpoint.ts:119:      pathname = new URL(request.url ?? '/', 'http://inspector.invalid').pathname
+scripts/publish-npm-baseline.ts:23:const DEFAULT_REGISTRY = 'https://registry.npm.harnessment.com'
+packages/web/web-search-perplexity/src/provider.ts:22:export const PERPLEXITY_DEFAULT_BASE_URL = 'https://api.perplexity.ai'
+packages/web/web-search-perplexity/src/types.ts:2: * Wire types for the Perplexity search API (`POST https://api.perplexity.ai/chat/completions`,
+scripts/translation-pairing.ts:326:const PUBLIC_REPOSITORY_BLOB_ROOT = 'https://github.com/deepseek-ai/deepseek-harness/blob/master/'
+packages/test-support/llm-mock-server/src/index.ts:650:    const path = new URL(request.url ?? '/', 'http://mock.invalid').pathname
+scripts/verify-doc-site-fragments.ts:109:  const origin = 'https://dsh-docs.invalid'
+packages/llm/llm-deepseek/src/index.ts:200:export const PUBLIC_BASE_URL = 'https://api.deepseek.com'
+packages/api/gateway/src/client/stream-client.ts:13:const INTERNAL_BASE = 'http://dsh.internal'
+scripts/check-workspace-constraints.ts:44:const repositoryUrl = 'git+https://github.com/deepseek-harness/deepseek-harness.git'
+scripts/check-workspace-constraints.ts:50:const publishedRepositoryUrl = 'git+https://github.com/deepseek-ai/deepseek-harness.git'
+scripts/gen-third-party-notices.ts:69:  'oxlint': { license: 'MIT', repo: 'https://github.com/oxc-project/oxc' },
+scripts/gen-third-party-notices.ts:70:  'oxlint-tsgolint': { license: 'MIT', repo: 'https://github.com/oxc-project/tsgolint' },
+scripts/gen-third-party-notices.ts:73:  '@modelcontextprotocol/server-everything': { license: 'MIT / Apache-2.0', repo: 'https://github.com/modelcontextprotocol/servers' },
+scripts/gen-third-party-notices.ts:74:  '@modelcontextprotocol/server-filesystem': { license: 'MIT / Apache-2.0', repo: 'https://github.com/modelcontextprotocol/servers' },
+scripts/gen-third-party-notices.ts:76:  'node-addon-require-builtin': { repo: 'https://www.npmjs.com/package/node-addon-require-builtin' },
+scripts/gen-third-party-notices.ts:85:  pydantic: { license: 'MIT', repo: 'https://github.com/pydantic/pydantic', role: 'runtime dependency of `deepseek-harness-sdk`' },
+scripts/gen-third-party-notices.ts:86:  hatchling: { license: 'MIT', repo: 'https://github.com/pypa/hatch', role: 'build backend' },
+scripts/gen-third-party-notices.ts:87:  pytest: { license: 'MIT', repo: 'https://github.com/pytest-dev/pytest', role: 'test-only' },
+scripts/gen-third-party-notices.ts:97:    repo: 'https://github.com/yao-pkg/pkg',
+scripts/gen-third-party-notices.ts:375:    .replace(/^github:/, 'https://github.com/')
+scripts/gen-third-party-notices.ts:377:  if (!url.startsWith('http')) url = `https://github.com/${url}`
+scripts/gen-third-party-notices.ts:675:    `| [\`${payload.name}\`](https://www.npmjs.com/package/${payload.name}) | ${payload.version} | ${CLAUDE_PLATFORM_DECLARED_LICENSE} |`,
+scripts/gen-third-party-notices.ts:766:| [\`uv\`](https://github.com/astral-sh/uv) | MIT / Apache-2.0 | development workflow tool |
+packages/subagent/subagent-codex/tests/deepseek-responses-bridge.ts:9:const OFFICIAL_DEEPSEEK_BASE_URL = 'https://api.deepseek.com'
+packages/llm/llm-pi-ai/src/index.ts:34: *         baseURL: https://gateway.acme.example/v1
+packages/llm/llm-pi-ai/src/discovery.ts:83: * `https://gateway.example/openai/v1` keeps its segments instead of losing
+packages/client/connection/src/browser-auth.ts:242:    const url = new URL(req.url ?? '/', 'http://dsh.invalid')
+packages/client/connection/src/client/fixture.ts:387:  '[DeepSeek](https://www.deepseek.com)',
+packages/client/connection/src/client/fixture.ts:394:const USER_MARKDOWN_LITERAL = '用户字面量：# 不渲染 `code` [link](https://example.com)'
+packages/client/connection/src/client/fixture.ts:534:      url: 'https://github.com/deepseek-ai/deepseek-harness',
+packages/client/connection/src/client/fixture.ts:540:      url: 'https://www.deepseek.com/blog/harness-architecture',
+packages/client/connection/src/client/fixture.ts:544:      url: 'https://docs.deepseek.com/harness/plugins',
+packages/client/connection/src/client/fixture.ts:554:  url: 'https://www.deepseek.com/blog/harness-architecture',
+packages/client/connection/src/client/fixture.ts:892:    '{"url":"https://www.deepseek.com/blog/harness-architecture"}',
+packages/client/connection/src/client/rpc.ts:11:const INTERNAL_BASE = 'http://dsh.internal'
+packages/client/connection/src/http-bridge.ts:69:  const request = new Request(new URL(req.url ?? '/', 'http://dsh.internal'), {
+packages/experimental/webworker-runtime/tests/vfs-example-fixture.ts:205:      result: 'Browser workers can host deterministic in-memory filesystems.\n\nSources:\n1. MDN Web Workers API — https://developer.mozilla.org/docs/Web/API/Web_Workers_API',
+packages/experimental/webworker-runtime/tests/vfs-example-fixture.ts:208:          url: 'https://developer.mozilla.org/docs/Web/API/Web_Workers_API',
+packages/llm/llm/src/attribution.ts:43:  url: 'https://github.com/deepseek-ai/deepseek-harness',
+packages/client/ui-settings-models/src/client/locales.ts:90:  customBaseUrlPlaceholder: 'https://gateway.example/v1',
+packages/client/ui-settings-models/src/client/locales.ts:196:  customBaseUrlPlaceholder: 'https://gateway.example/v1',
+packages/client/modules/src/index.ts:357:  const base = new URL(`/plugins/${record.entry.id}/client.js.map`, 'http://dsh.invalid')

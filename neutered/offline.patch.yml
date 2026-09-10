@@ -1,0 +1,21 @@
+# dsh-neutered offline overlay.
+#
+# Applied after the headless profile by the neutered/bin/dsh-neutered wrapper.
+# The base bundle is already fully neutered in this fork: the DeepSeek route,
+# telemetry, the web tools, MCP, e2b, webhooks and the plugin manager are gone
+# from the tree, and `agent-default-model` already defaults to the loopback
+# `local` route. So this overlay only pins the local model catalog: one model
+# named `local` with a generous context window. `dsh-neutered setup` writes a
+# second overlay, $DSH_HOME/neutered/overlay.yml, with the chosen model's name
+# and the context window sized for the machine; the wrapper applies it after
+# this file, so its values win. The runtime endpoint is fixed at
+# http://127.0.0.1:1234/v1 by the llm-local adapter and enforced by the guard.
+- id: llm-local
+  config:
+    defaultContextWindow: 131072
+    maxTokens: 32768
+    models:
+      - id: local
+        name: Local model
+        contextWindow: 131072
+        maxTokens: 32768

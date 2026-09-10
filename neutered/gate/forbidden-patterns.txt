@@ -1,0 +1,49 @@
+# dsh-neutered static egress patterns for neutered/gate/egress-grep.sh.
+# One extended-regex (rg -e) per line; blank lines and # comments ignored.
+# Two sections; the marker line "## PRIMITIVES" separates them.
+#
+# DESTINATIONS are off-machine endpoints, forbidden anywhere in the scanned
+# tree. PRIMITIVES are network-capable APIs, forbidden outside the three files
+# that are allowed to hold one: neutered/guard/, neutered/gate/ and
+# packages/llm/llm-local/ (fixed in the script, not here).
+
+# ── DESTINATIONS ──
+# Model hub: legal in exactly one place, neutered/setup/ (model download during
+# `dsh-neutered setup`); the scan excludes that path, so a hit anywhere else is a
+# leak. It is also the hub llama-server could download from; the wrapper refuses
+# the -hf, --model-url and --docker-repo flags and always passes --offline.
+huggingface\.co
+deepseeksvc\.com
+api\.deepseek\.com
+harness-telemetry
+DSH_TELEMETRY_OTLP_URL
+registry\.npmjs\.org
+# github.com/deepseek removed: the plugin manager that could clone from the org
+# is gone; the only matches now are the upstream repository.url metadata every
+# vendored package.json carries, which no runtime code dials.
+opentelemetry
+e2b\.dev
+exa\.ai
+perplexity\.ai
+openrouter\.ai
+githubcopilot\.com
+auth\.x\.ai
+kimi\.com
+aliyuncs\.com
+gateway\.ai\.cloudflare\.com
+googleapis\.com
+amazonaws\.com
+
+## PRIMITIVES
+\bfetch\(
+from ['"]node:https?['"]
+from ['"]https?['"]
+require\(['"]https?['"]\)
+node:net\b
+node:tls\b
+node:dns\b
+node:dgram\b
+new WebSocket\(
+EventSource\(
+(from .['"]|require\(.['"])undici
+\.connect\(

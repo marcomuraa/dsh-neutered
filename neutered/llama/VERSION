@@ -1,0 +1,6 @@
+# The llama.cpp server build vendored by dsh-neutered. install.sh checks the
+# tarball against this file before unpacking; the wrapper checks bin/ against
+# SHA256SUMS before every start.
+tag=b10798
+asset=llama-b10798-bin-macos-arm64.tar.gz
+sha256=17f844962e63de58723f022a367ab8ae75822c1ae8c730772ed79110e9709ccb

@@ -1,0 +1,44 @@
+class DshNeutered < Formula
+  desc "Coding agent for a local model server"
+  homepage "https://github.com/@REPOSITORY@"
+  url "https://github.com/@REPOSITORY@/releases/download/v@VERSION@/dsh-neutered-@VERSION@-darwin-arm64.tar.gz"
+  version "@VERSION@"
+  sha256 "@SHA256@"
+  license "MIT"
+
+  depends_on arch: :arm64
+  depends_on :macos
+  depends_on "node"
+
+  # The launcher verifies the upstream llama.cpp bytes before each start.
+  skip_clean "libexec"
+  preserve_rpath
+
+  def install
+    libexec.install "apps", "neutered", "release.json", "LICENSE", "THIRD_PARTY_NOTICES.md"
+    (bin/"dsh-neutered").write_env_script libexec/"neutered/bin/dsh-neutered",
+                                         PATH: "#{Formula["node"].opt_bin}:#{ENV.fetch("PATH")}"
+  end
+
+  def caveats
+    <<~EOS
+      Select and download a model with:
+        dsh-neutered setup
+
+      Models and settings live in ~/.dsh, or in DSH_HOME when set.
+      Setup needs network access. Task runs use 127.0.0.1:1234.
+    EOS
+  end
+
+  test do
+    ENV["DSH_HOME"] = (testpath/"home").to_s
+    assert_equal version.to_s, shell_output("#{bin}/dsh-neutered --version").strip
+    assert_match "dsh-neutered setup", shell_output("#{bin}/dsh-neutered --help")
+    node = Formula["node"].opt_bin/"node"
+    ENV["NODE_OPTIONS"] = "--require=#{libexec}/neutered/guard/loopback-only.cjs"
+    assert_match "Answer one task", shell_output("#{node} #{libexec}/apps/cli/lib/bin.js --profile headless -- --help")
+    cd libexec/"neutered/llama/bin" do
+      system "shasum", "-a", "256", "-c", "../SHA256SUMS"
+    end
+  end
+end

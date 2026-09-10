@@ -1,0 +1,27 @@
+#!/usr/bin/expect -f
+# Drive one dsh-neutered REPL session under a pty for the capture gate:
+# wait for the prompt, send the task, wait for the marker, exit with Ctrl-C twice.
+# Arguments: <wrapper> <dsh command> <task> <marker regex>
+set timeout 900
+lassign $argv wrapper dsh task marker
+spawn $wrapper --dsh $dsh
+expect {
+  -re {dsh> } {}
+  timeout { puts stderr "repl-session: no prompt within 900 s"; exit 3 }
+  eof { puts stderr "repl-session: exited before the prompt"; exit 3 }
+}
+send -- "$task\r"
+expect {
+  -re $marker {}
+  timeout { puts stderr "repl-session: no $marker within 900 s"; exit 4 }
+  eof { puts stderr "repl-session: exited before answering"; exit 4 }
+}
+expect {
+  -re {dsh> } {}
+  timeout { puts stderr "repl-session: no prompt after the answer"; exit 5 }
+  eof { puts stderr "repl-session: exited after answering"; exit 5 }
+}
+send -- "\003\003"
+expect eof
+lassign [wait] pid spawnid oserr rc
+exit $rc

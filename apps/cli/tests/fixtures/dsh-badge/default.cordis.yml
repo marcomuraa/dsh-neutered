@@ -1,0 +1,3 @@
+- id: skill-filesystem
+  config:
+    watch: false

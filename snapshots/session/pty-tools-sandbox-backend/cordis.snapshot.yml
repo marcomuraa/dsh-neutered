@@ -1,0 +1,23 @@
+# Keyless replay counterpart to pty.cordis.yml.
+- id: llm-local
+  name: '@deepseek-ai/dsh-llm-local'
+  disabled: true
+
+- insert:
+    - id: pty
+      name: '@deepseek-ai/dsh-terminal'
+    - id: pty-snapshot-backend
+      name: './pty-snapshot-backend.mjs'
+    - id: tool-terminal
+      name: '@deepseek-ai/dsh-tool-terminal'
+      config:
+        maxResultBytes: 64
+    - id: llm-replay
+      name: '@deepseek-ai/dsh-llm-replay'
+      config:
+        providers:
+          - id: local
+            name: DeepSeek
+            models:
+              - id: local
+              - id: local-pro

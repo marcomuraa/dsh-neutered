@@ -1,0 +1,81 @@
+#!/bin/bash
+# dsh-neutered — automatic setup for a fresh clone (macOS only).
+#
+# Installs the pnpm workspace, builds the CLI, then runs the first-time setup
+# (hardware detection, model choice, llama.cpp and model download). Everything
+# here uses the network on purpose; a task run afterwards never does.
+#
+# Usage: bash neutered/bin/install [--no-setup] [--yes]
+#   --no-setup   install and build only; run neutered/bin/dsh-neutered setup later
+#   --yes        accept the recommended model without asking
+set -euo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo="$(cd "$here/../.." && pwd)"
+PNPM_VERSION="11.7.0"
+NODE_MIN_MAJOR=22
+NODE_MIN_MINOR=19
+
+usage() { sed -n '2,10p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+
+no_setup=0
+setup_args=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --no-setup) no_setup=1; shift ;;
+    --yes) setup_args+=("--yes"); shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "install: unknown argument '$1'" >&2; usage >&2; exit 2 ;;
+  esac
+done
+
+if [ "$(uname -s)" != "Darwin" ]; then
+  echo "install: dsh-neutered supports macOS only (this is $(uname -s))" >&2
+  exit 2
+fi
+if [ "$(uname -m)" != "arm64" ]; then
+  echo "install: warning: $(uname -m) Mac detected; inference will run on the CPU and be slow" >&2
+fi
+
+command -v git >/dev/null 2>&1 || { echo "install: git is required (xcode-select --install)" >&2; exit 3; }
+if ! command -v node >/dev/null 2>&1; then
+  echo "install: Node.js >= ${NODE_MIN_MAJOR}.${NODE_MIN_MINOR} is required: brew install node" >&2
+  exit 3
+fi
+node_version="$(node --version | sed 's/^v//')"
+node_major="${node_version%%.*}"
+node_rest="${node_version#*.}"
+node_minor="${node_rest%%.*}"
+if [ "$node_major" -lt "$NODE_MIN_MAJOR" ] || { [ "$node_major" -eq "$NODE_MIN_MAJOR" ] && [ "$node_minor" -lt "$NODE_MIN_MINOR" ]; }; then
+  echo "install: Node.js ${node_version} is too old; need >= ${NODE_MIN_MAJOR}.${NODE_MIN_MINOR} (brew install node)" >&2
+  exit 3
+fi
+if ! command -v pnpm >/dev/null 2>&1; then
+  echo "install: enabling pnpm ${PNPM_VERSION} through corepack"
+  corepack enable
+  corepack prepare "pnpm@${PNPM_VERSION}" --activate
+fi
+
+cd "$repo"
+echo "install: pnpm install --frozen-lockfile (network: npm registry)"
+pnpm install --frozen-lockfile
+echo "install: pnpm run build"
+pnpm run build
+
+if [ "$no_setup" -eq 1 ]; then
+  echo "install: build complete. Next: neutered/bin/dsh-neutered setup"
+  exit 0
+fi
+
+if "$here/dsh-neutered" settings --show 2>/dev/null; then
+  echo "install: existing configuration kept (change it with neutered/bin/dsh-neutered settings)"
+else
+  "$here/dsh-neutered" setup ${setup_args[@]+"${setup_args[@]}"}
+fi
+
+echo
+echo "install: done. Run a task with:"
+echo "  $here/dsh-neutered -- \"describe the task\""
+if [ -d /opt/homebrew/bin ] && [ -w /opt/homebrew/bin ] && [ ! -e /opt/homebrew/bin/dsh-neutered ]; then
+  echo "Optional: ln -s \"$here/dsh-neutered\" /opt/homebrew/bin/dsh-neutered"
+fi

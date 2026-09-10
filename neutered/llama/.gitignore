@@ -1,0 +1,2 @@
+# The unpacked server build; install.sh recreates it from the pinned tarball.
+bin/
